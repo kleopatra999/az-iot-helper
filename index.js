@@ -3,7 +3,10 @@
 var fs = require('fs');
 var ssh2 = require('ssh2');
 
-module.exports = function (config, sourceFileList, targetFileList, callback) {
+var uploadFiles = function (config, sourceFileList, targetFileList, callback) {
+  var finishedFileNumber = 0;
+  var totalFileNumber = sourceFileList.length;
+
   var conn = new ssh2();
   conn.on(
     'connect',
@@ -22,7 +25,9 @@ module.exports = function (config, sourceFileList, targetFileList, callback) {
         function (err, sftp) {
           if ( err ) {
             console.log( "--- SFTP error: %s", err );
-            process.exit( 2 );
+            
+            callback(err);
+            return;
           }
 
           console.log( "--- SFTP started" );
@@ -41,16 +46,24 @@ module.exports = function (config, sourceFileList, targetFileList, callback) {
             writeStream.on(
               'close',
               function () {
-                console.log( "--- file transfered" );
-                sftp.end();
+                console.log( "--- file transferred" );
 
-                callback(function(){conn.end();});
+                if(++finishedFileNumber == totalFileNumber)
+                {
+                  console.log( "--- all files have been transferred" );
+                  sftp.end();
+                  conn.end();
+                  
+                  if (callback){
+                    callback();
+                  }
+                }
               }
             );
 
             // initiate transfer of file
             readStream.pipe( writeStream );
-          }
+          } 
         }
       );
     }
@@ -60,7 +73,6 @@ module.exports = function (config, sourceFileList, targetFileList, callback) {
     'error',
     function (err) {
       console.log( "- connection error: %s", err );
-      process.exit( 1 );
     }
   );
 
@@ -68,7 +80,6 @@ module.exports = function (config, sourceFileList, targetFileList, callback) {
     'end',
     function () {
       console.log( "- end" );
-      process.exit( 0 );
     }
   );
 
@@ -79,3 +90,5 @@ module.exports = function (config, sourceFileList, targetFileList, callback) {
     "password": config.device_password
   });
 }
+
+module.exports.uploadFiles = uploadFiles;
