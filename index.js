@@ -1,4 +1,4 @@
-'use-strict';
+'use strict';
 
 var fs = require('fs');
 var ssh2 = require('ssh2');
@@ -10,17 +10,12 @@ var uploadFiles = function (config, sourceFileList, targetFileList, callback) {
   var conn = new ssh2();
   conn.on(
     'connect',
-     function () {
-        console.log( "- connected" );
-      }
+     function(){}
   );
 
   conn.on(
     'ready',
     function () {
-      console.log( "- ready" );
-
-      console.log( "-- transfer sample code to device" );
       conn.sftp(
         function (err, sftp) {
           if ( err ) {
@@ -30,9 +25,7 @@ var uploadFiles = function (config, sourceFileList, targetFileList, callback) {
             return;
           }
 
-          console.log( "--- SFTP started" );
-
-          for(var i = 0; i < sourceFileList.length; i++)
+          for(let i = 0; i < sourceFileList.length; i++)
           {
             // TODO:
             // If the target file list contain folder that doesn't exist in device, the upload will fail.
@@ -42,23 +35,23 @@ var uploadFiles = function (config, sourceFileList, targetFileList, callback) {
             var readStream = fs.createReadStream( sourceFileList[i] );
             var writeStream = sftp.createWriteStream( targetFileList[i] );
 
+            var onClose = function(){
+              console.log( "- file '" +  sourceFileList[i] + "' transferred" );
+              if(++finishedFileNumber == totalFileNumber)
+              {
+                sftp.end();
+                conn.end();
+                
+                if (callback){
+                  callback();
+                }
+              }
+            };
+            
             // what to do when transfer finishes
             writeStream.on(
               'close',
-              function () {
-                console.log( "--- file transferred" );
-
-                if(++finishedFileNumber == totalFileNumber)
-                {
-                  console.log( "--- all files have been transferred" );
-                  sftp.end();
-                  conn.end();
-                  
-                  if (callback){
-                    callback();
-                  }
-                }
-              }
+              onClose
             );
 
             // initiate transfer of file
@@ -78,9 +71,7 @@ var uploadFiles = function (config, sourceFileList, targetFileList, callback) {
 
   conn.on(
     'end',
-    function () {
-      console.log( "- end" );
-    }
+    function(){}
   );
 
   conn.connect({
